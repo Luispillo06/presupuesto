@@ -1,0 +1,6 @@
+<!-- Placeholder para el logo de MarketMove -->
+<!-- Reemplazar con el logo real del proyecto -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <circle cx="100" cy="100" r="90" fill="#2E7D32"/>
+  <text x="100" y="115" text-anchor="middle" fill="white" font-size="48" font-family="Arial, sans-serif" font-weight="bold">MM</text>
+</svg>
