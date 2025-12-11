@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../shared/theme/app_theme.dart';
+import '../../../core/supabase/supabase_config.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -19,6 +20,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   bool _obscureConfirm = true;
   bool _isLoading = false;
   bool _acceptTerms = false;
+  String _selectedRole = 'vendor'; // Rol por defecto
 
   late AnimationController _formController;
   late Animation<double> _formSlide;
@@ -52,27 +54,86 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   Future<void> _register() async {
-    if (_formKey.currentState!.validate() && _acceptTerms) {
-      setState(() {
-        _isLoading = true;
-      });
-      await Future.delayed(const Duration(seconds: 1));
-      setState(() {
-        _isLoading = false;
-      });
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/home');
-      }
-    } else if (!_acceptTerms) {
+    if (!_acceptTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Debes aceptar los terminos y condiciones'),
+          content: const Text('Debes aceptar los términos y condiciones'),
+          backgroundColor: Colors.orange,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
         ),
       );
+      return;
+    }
+
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        final email = _emailController.text.trim();
+        final password = _passwordController.text.trim();
+        final name = _nameController.text.trim();
+
+        // Crear usuario en Supabase Auth con metadata
+        // El trigger automático creará el perfil
+        final authResponse = await SupabaseConfig.client.auth.signUp(
+          email: email,
+          password: password,
+          data: {'nombre': name, 'role': _selectedRole},
+        );
+
+        if (authResponse.user != null) {
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (BuildContext context) => AlertDialog(
+                title: const Text('📧 Verifica tu correo'),
+                content: const Text(
+                  'Hemos enviado un enlace de confirmación a tu email.\n\n'
+                  'Por favor, verifica tu correo y haz clic en el enlace para activar tu cuenta.',
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context); // Cerrar diálogo
+                      Navigator.pushReplacementNamed(context, '/login');
+                    },
+                    child: const Text('Ir a Login'),
+                  ),
+                ],
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Error: ${e.toString()}'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -113,6 +174,8 @@ class _RegisterScreenState extends State<RegisterScreen>
                         _buildPasswordField(),
                         const SizedBox(height: 16),
                         _buildConfirmPasswordField(),
+                        const SizedBox(height: 16),
+                        _buildRoleSelector(),
                         const SizedBox(height: 16),
                         _buildTermsCheckbox(),
                         const SizedBox(height: 24),
@@ -224,6 +287,92 @@ class _RegisterScreenState extends State<RegisterScreen>
         if (v != _passwordController.text) return 'Las passwords no coinciden';
         return null;
       },
+    );
+  }
+
+  Widget _buildRoleSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Tipo de Cuenta',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w500,
+            color: AppTheme.primaryColor,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildRoleCard(
+                role: 'vendor',
+                label: '🏪 Vendedor',
+                subtitle: 'Vende productos',
+                isSelected: _selectedRole == 'vendor',
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildRoleCard(
+                role: 'buyer',
+                label: '🛒 Comprador',
+                subtitle: 'Compra productos',
+                isSelected: _selectedRole == 'buyer',
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRoleCard({
+    required String role,
+    required String label,
+    required String subtitle,
+    required bool isSelected,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedRole = role;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
+            width: isSelected ? 2 : 1,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          color: isSelected
+              ? AppTheme.primaryColor.withOpacity(0.1)
+              : Colors.transparent,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: isSelected
+                    ? AppTheme.primaryColor
+                    : Colors.grey.shade800,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -408,10 +557,9 @@ class _RegisterButtonState extends State<_RegisterButton>
       },
       child: ScaleTransition(
         scale: _scale,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
+        child: Container(
           height: 56,
-          width: widget.isLoading ? 56 : double.infinity,
+          width: double.infinity,
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -419,7 +567,7 @@ class _RegisterButtonState extends State<_RegisterButton>
                 AppTheme.primaryColor.withValues(alpha: 0.8),
               ],
             ),
-            borderRadius: BorderRadius.circular(widget.isLoading ? 28 : 12),
+            borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
                 color: AppTheme.primaryColor.withValues(alpha: 0.4),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'dart:async';
 import '../../../shared/theme/app_theme.dart';
+import '../../../core/supabase/supabase_config.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen>
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  Timer? _loginTimer;
 
   late AnimationController _logoController;
   late AnimationController _formController;
@@ -27,6 +30,8 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void initState() {
     super.initState();
+    _emailController.clear();
+    _passwordController.clear();
     _setupAnimations();
   }
 
@@ -67,6 +72,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   void dispose() {
+    _loginTimer?.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     _logoController.dispose();
@@ -86,12 +92,38 @@ class _LoginScreenState extends State<LoginScreen>
       setState(() {
         _isLoading = true;
       });
-      await Future.delayed(const Duration(seconds: 1));
-      setState(() {
-        _isLoading = false;
-      });
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/home');
+
+      try {
+        final email = _emailController.text.trim();
+        final password = _passwordController.text.trim();
+
+        await SupabaseConfig.client.auth.signInWithPassword(
+          email: email,
+          password: password,
+        );
+
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Error: ${e.toString()}'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+        }
       }
     }
   }
@@ -210,16 +242,21 @@ class _LoginScreenState extends State<LoginScreen>
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Contacta a soporte para recuperar tu contraseña',
+                          ),
+                          duration: Duration(seconds: 3),
+                        ),
+                      );
+                    },
                     child: const Text('Olvidaste tu password?'),
                   ),
                 ),
                 const SizedBox(height: 24),
                 _buildLoginButton(),
-                const SizedBox(height: 32),
-                _buildDivider(),
-                const SizedBox(height: 24),
-                _buildSocialButtons(),
                 const SizedBox(height: 32),
                 _buildRegisterLink(),
               ],
@@ -268,33 +305,6 @@ class _LoginScreenState extends State<LoginScreen>
     return _LoginButton(isLoading: _isLoading, onPressed: _login);
   }
 
-  Widget _buildDivider() {
-    return Row(
-      children: [
-        Expanded(child: Divider(color: Colors.grey.shade300)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'o continua con',
-            style: TextStyle(color: Colors.grey.shade500),
-          ),
-        ),
-        Expanded(child: Divider(color: Colors.grey.shade300)),
-      ],
-    );
-  }
-
-  Widget _buildSocialButtons() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _SocialBtn(icon: Icons.g_mobiledata, color: Colors.red),
-        const SizedBox(width: 16),
-        _SocialBtn(icon: Icons.apple, color: Colors.black),
-      ],
-    );
-  }
-
   Widget _buildRegisterLink() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -341,68 +351,45 @@ class _AnimatedField extends StatefulWidget {
 
 class _AnimatedFieldState extends State<_AnimatedField>
     with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _scale;
   bool _focused = false;
 
   @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      duration: const Duration(milliseconds: 400),
-      vsync: this,
-    );
-    _scale = Tween<double>(
-      begin: 0.9,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut));
-    _ctrl.forward();
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return ScaleTransition(
-      scale: _scale,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: _focused
-              ? [
-                  BoxShadow(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : [],
-        ),
-        child: Focus(
-          onFocusChange: (f) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: _focused
+            ? [
+                BoxShadow(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : [],
+      ),
+      child: Focus(
+        onFocusChange: (f) {
+          if (mounted) {
             setState(() {
               _focused = f;
             });
-          },
-          child: TextFormField(
-            controller: widget.controller,
-            obscureText: widget.obscure,
-            keyboardType: widget.keyboardType,
-            decoration: InputDecoration(
-              labelText: widget.label,
-              hintText: widget.hint,
-              prefixIcon: Icon(widget.icon),
-              suffixIcon: widget.suffixIcon,
-              filled: true,
-              fillColor: Colors.white,
-            ),
-            validator: widget.validator,
+          }
+        },
+        child: TextFormField(
+          controller: widget.controller,
+          obscureText: widget.obscure,
+          keyboardType: widget.keyboardType,
+          decoration: InputDecoration(
+            labelText: widget.label,
+            hintText: widget.hint,
+            prefixIcon: Icon(widget.icon),
+            suffixIcon: widget.suffixIcon,
+            filled: true,
+            fillColor: Colors.white,
           ),
+          validator: widget.validator,
         ),
       ),
     );
@@ -421,114 +408,55 @@ class _LoginButton extends StatefulWidget {
 
 class _LoginButtonState extends State<_LoginButton>
     with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _scale;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      duration: const Duration(milliseconds: 100),
-      vsync: this,
-    );
-    _scale = Tween<double>(
-      begin: 1.0,
-      end: 0.95,
-    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (details) {
-        _ctrl.forward();
-      },
-      onTapUp: (details) {
-        _ctrl.reverse();
-        if (!widget.isLoading) {
-          widget.onPressed();
-        }
-      },
-      onTapCancel: () {
-        _ctrl.reverse();
-      },
-      child: ScaleTransition(
-        scale: _scale,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          height: 56,
-          width: widget.isLoading ? 56 : double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppTheme.primaryColor,
-                AppTheme.primaryColor.withValues(alpha: 0.8),
+    return SizedBox(
+      height: 56,
+      width: widget.isLoading ? 56 : double.infinity,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: widget.isLoading ? null : widget.onPressed,
+          borderRadius: BorderRadius.circular(widget.isLoading ? 28 : 12),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.primaryColor,
+                  AppTheme.primaryColor.withValues(alpha: 0.8),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(widget.isLoading ? 28 : 12),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.4),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                ),
               ],
             ),
-            borderRadius: BorderRadius.circular(widget.isLoading ? 28 : 12),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.primaryColor.withValues(alpha: 0.4),
-                blurRadius: 15,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Center(
-            child: widget.isLoading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            child: Center(
+              child: widget.isLoading
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text(
+                      'Iniciar Sesion',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  )
-                : const Text(
-                    'Iniciar Sesion',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+            ),
           ),
         ),
       ),
-    );
-  }
-}
-
-class _SocialBtn extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-
-  const _SocialBtn({required this.icon, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade200,
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Icon(icon, color: color, size: 32),
     );
   }
 }

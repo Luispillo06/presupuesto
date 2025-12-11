@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:provider/provider.dart';
 import '../../../shared/theme/app_theme.dart';
+import '../../../shared/providers/data_providers.dart';
 
 class ResumenScreen extends StatefulWidget {
   const ResumenScreen({super.key});
@@ -13,25 +16,23 @@ class _ResumenScreenState extends State<ResumenScreen>
   late AnimationController _balanceController;
   late AnimationController _cardsController;
   late AnimationController _listController;
+  Timer? _cardsTimer;
+  Timer? _listTimer;
 
   late Animation<double> _balanceScale;
   late Animation<double> _balanceSlide;
   late Animation<double> _cardsFade;
 
-  // Valores animados
-  double _animatedBalance = 0;
-  double _animatedIngresos = 0;
-  double _animatedGastos = 0;
-
-  final double _targetBalance = 2350.00;
-  final double _targetIngresos = 3200.00;
-  final double _targetGastos = 850.00;
-
   @override
   void initState() {
     super.initState();
     _setupAnimations();
-    _animateValues();
+    // Cargar datos reales al iniciar
+    Future.microtask(() {
+      if (mounted) {
+        context.read<ResumenProvider>().loadResumen();
+      }
+    });
   }
 
   void _setupAnimations() {
@@ -50,12 +51,12 @@ class _ResumenScreenState extends State<ResumenScreen>
       vsync: this,
     );
 
-    _balanceScale = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _balanceController, curve: Curves.elasticOut),
+    _balanceScale = Tween<double>(begin: 0.95, end: 1.0).animate(
+      CurvedAnimation(parent: _balanceController, curve: Curves.easeOut),
     );
 
-    _balanceSlide = Tween<double>(begin: -50, end: 0).animate(
-      CurvedAnimation(parent: _balanceController, curve: Curves.easeOutCubic),
+    _balanceSlide = Tween<double>(begin: 20, end: 0).animate(
+      CurvedAnimation(parent: _balanceController, curve: Curves.easeOut),
     );
 
     _cardsFade = Tween<double>(
@@ -63,37 +64,22 @@ class _ResumenScreenState extends State<ResumenScreen>
       end: 1.0,
     ).animate(CurvedAnimation(parent: _cardsController, curve: Curves.easeOut));
 
-    _balanceController.forward().then((v) {
-      _cardsController.forward();
+    _balanceController.forward();
+
+    // Stagger animations slightly
+    _cardsTimer = Timer(const Duration(milliseconds: 200), () {
+      if (mounted) _cardsController.forward();
     });
 
-    Future.delayed(const Duration(milliseconds: 600), () {
+    _listTimer = Timer(const Duration(milliseconds: 400), () {
       if (mounted) _listController.forward();
-    });
-  }
-
-  void _animateValues() {
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (!mounted) return;
-
-      const steps = 30;
-      const stepDuration = Duration(milliseconds: 30);
-
-      for (int i = 1; i <= steps; i++) {
-        Future.delayed(stepDuration * i, () {
-          if (!mounted) return;
-          setState(() {
-            _animatedBalance = _targetBalance * (i / steps);
-            _animatedIngresos = _targetIngresos * (i / steps);
-            _animatedGastos = _targetGastos * (i / steps);
-          });
-        });
-      }
     });
   }
 
   @override
   void dispose() {
+    _cardsTimer?.cancel();
+    _listTimer?.cancel();
     _balanceController.dispose();
     _cardsController.dispose();
     _listController.dispose();
@@ -102,41 +88,47 @@ class _ResumenScreenState extends State<ResumenScreen>
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildAnimatedBalanceCard(),
-          const SizedBox(height: 20),
-          _buildAnimatedStatsCards(),
-          const SizedBox(height: 24),
-          _buildAnimatedTransactions(),
-        ],
-      ),
-    );
-  }
+    return Consumer<ResumenProvider>(
+      builder: (context, provider, child) {
+        if (provider.isLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-  Widget _buildAnimatedBalanceCard() {
-    return AnimatedBuilder(
-      animation: _balanceController,
-      builder: (context, child) {
-        return Transform.translate(
-          offset: Offset(0, _balanceSlide.value),
-          child: Transform.scale(
-            scale: _balanceScale.value,
-            child: _BalanceCard(
-              balance: _animatedBalance,
-              ingresos: _animatedIngresos,
-              gastos: _animatedGastos,
-            ),
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildAnimatedBalanceCard(provider),
+              const SizedBox(height: 20),
+              _buildAnimatedStatsCards(provider),
+              const SizedBox(height: 24),
+              _buildAnimatedTransactions(),
+            ],
           ),
         );
       },
     );
   }
 
-  Widget _buildAnimatedStatsCards() {
+  Widget _buildAnimatedBalanceCard(ResumenProvider provider) {
+    return AnimatedBuilder(
+      animation: _balanceController,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(0, _balanceSlide.value),
+          child: Transform.scale(scale: _balanceScale.value, child: child),
+        );
+      },
+      child: _BalanceCard(
+        targetBalance: provider.balance,
+        targetIngresos: provider.totalVentas,
+        targetGastos: provider.totalGastos,
+      ),
+    );
+  }
+
+  Widget _buildAnimatedStatsCards(ResumenProvider provider) {
     return AnimatedBuilder(
       animation: _cardsController,
       builder: (context, child) {
@@ -149,7 +141,7 @@ class _ResumenScreenState extends State<ResumenScreen>
                   Expanded(
                     child: _AnimatedStatCard(
                       title: 'Ventas Hoy',
-                      value: 450.00,
+                      value: provider.totalVentas,
                       prefix: 'EUR ',
                       icon: Icons.trending_up,
                       color: AppTheme.successColor,
@@ -160,7 +152,7 @@ class _ResumenScreenState extends State<ResumenScreen>
                   Expanded(
                     child: _AnimatedStatCard(
                       title: 'Gastos Hoy',
-                      value: 120.00,
+                      value: provider.totalGastos,
                       prefix: 'EUR ',
                       icon: Icons.trending_down,
                       color: AppTheme.errorColor,
@@ -175,7 +167,7 @@ class _ResumenScreenState extends State<ResumenScreen>
                   Expanded(
                     child: _AnimatedStatCard(
                       title: 'Productos',
-                      value: 24,
+                      value: provider.totalProductos.toDouble(),
                       icon: Icons.inventory_2,
                       color: AppTheme.secondaryColor,
                       delay: 2,
@@ -186,12 +178,12 @@ class _ResumenScreenState extends State<ResumenScreen>
                   Expanded(
                     child: _AnimatedStatCard(
                       title: 'Stock Bajo',
-                      value: 3,
+                      value: provider.productosStockBajo.toDouble(),
                       icon: Icons.warning,
                       color: AppTheme.warningColor,
                       delay: 3,
                       isInteger: true,
-                      isPulsing: true,
+                      isPulsing: provider.productosStockBajo > 0,
                     ),
                   ),
                 ],
@@ -218,47 +210,86 @@ class _ResumenScreenState extends State<ResumenScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Ultimas Transacciones',
+                      'Transacciones Recientes',
                       style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    TextButton(
-                      onPressed: () {},
-                      child: const Text('Ver todas'),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                _AnimatedTransaction(
-                  title: 'Venta - Cliente #45',
-                  amount: 'EUR 85.00',
-                  icon: Icons.add_circle,
-                  color: AppTheme.successColor,
-                  time: 'Hace 2 horas',
-                  delay: 0,
-                ),
-                _AnimatedTransaction(
-                  title: 'Compra - Proveedor ABC',
-                  amount: 'EUR 250.00',
-                  icon: Icons.remove_circle,
-                  color: AppTheme.errorColor,
-                  time: 'Hace 5 horas',
-                  delay: 1,
-                ),
-                _AnimatedTransaction(
-                  title: 'Venta - Cliente #44',
-                  amount: 'EUR 120.00',
-                  icon: Icons.add_circle,
-                  color: AppTheme.successColor,
-                  time: 'Ayer',
-                  delay: 2,
-                ),
-                _AnimatedTransaction(
-                  title: 'Gasto - Luz',
-                  amount: 'EUR 75.00',
-                  icon: Icons.remove_circle,
-                  color: AppTheme.errorColor,
-                  time: 'Ayer',
-                  delay: 3,
+                Consumer<ResumenProvider>(
+                  builder: (context, provider, _) {
+                    if (provider.recentTransactions.isEmpty) {
+                      return Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'No hay transacciones recientes',
+                            style: TextStyle(color: Colors.grey.shade600),
+                          ),
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: provider.recentTransactions.length,
+                      itemBuilder: (context, index) {
+                        final transaction = provider.recentTransactions[index];
+                        final isVenta = transaction['type'] == 'venta';
+                        final date = transaction['date'] as DateTime;
+
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          elevation: 0,
+                          color: Colors.grey.shade50,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.grey.shade200),
+                          ),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: isVenta
+                                  ? Colors.green.withOpacity(0.1)
+                                  : Colors.red.withOpacity(0.1),
+                              child: Icon(
+                                isVenta
+                                    ? Icons.arrow_upward
+                                    : Icons.arrow_downward,
+                                color: isVenta ? Colors.green : Colors.red,
+                                size: 20,
+                              ),
+                            ),
+                            title: Text(
+                              transaction['title'],
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: Text(
+                              '${transaction['subtitle']} • ${date.day}/${date.month} ${date.hour}:${date.minute.toString().padLeft(2, '0')}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            trailing: Text(
+                              '${isVenta ? '+' : '-'} \$${(transaction['amount'] as double).toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: isVenta ? Colors.green : Colors.red,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
                 ),
               ],
             ),
@@ -270,14 +301,14 @@ class _ResumenScreenState extends State<ResumenScreen>
 }
 
 class _BalanceCard extends StatelessWidget {
-  final double balance;
-  final double ingresos;
-  final double gastos;
+  final double targetBalance;
+  final double targetIngresos;
+  final double targetGastos;
 
   const _BalanceCard({
-    required this.balance,
-    required this.ingresos,
-    required this.gastos,
+    required this.targetBalance,
+    required this.targetIngresos,
+    required this.targetGastos,
   });
 
   @override
@@ -310,54 +341,62 @@ class _BalanceCard extends StatelessWidget {
                 'Balance del Mes',
                 style: TextStyle(color: Colors.white70, fontSize: 14),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.trending_up, color: Colors.white, size: 16),
-                    SizedBox(width: 4),
-                    Text(
-                      '+12%',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
+              // Badge de tendencia - solo se muestra si hay datos
+              targetBalance > 0
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
                       ),
-                    ),
-                  ],
-                ),
-              ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            targetBalance > 0
+                                ? Icons.trending_up
+                                : Icons.trending_down,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${targetBalance > 0 ? '+' : ''}${(targetBalance / 100 * 5).toStringAsFixed(0)}%',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : const SizedBox.shrink(),
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            'EUR ${balance.toStringAsFixed(2)}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 36,
-              fontWeight: FontWeight.bold,
-            ),
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0, end: targetBalance),
+            duration: const Duration(milliseconds: 1500),
+            curve: Curves.easeOut,
+            builder: (context, value, child) {
+              return Text(
+                'EUR ${value.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                ),
+              );
+            },
           ),
           const SizedBox(height: 20),
           Row(
             children: [
-              _buildDetail(
-                'Ingresos',
-                'EUR ${ingresos.toStringAsFixed(0)}',
-                Icons.arrow_upward,
-              ),
+              _buildDetail('Ingresos', targetIngresos, Icons.arrow_upward),
               const SizedBox(width: 32),
-              _buildDetail(
-                'Gastos',
-                'EUR ${gastos.toStringAsFixed(0)}',
-                Icons.arrow_downward,
-              ),
+              _buildDetail('Gastos', targetGastos, Icons.arrow_downward),
             ],
           ),
         ],
@@ -365,7 +404,7 @@ class _BalanceCard extends StatelessWidget {
     );
   }
 
-  Widget _buildDetail(String label, String value, IconData icon) {
+  Widget _buildDetail(String label, double targetValue, IconData icon) {
     return Row(
       children: [
         Container(
@@ -384,13 +423,20 @@ class _BalanceCard extends StatelessWidget {
               label,
               style: const TextStyle(color: Colors.white70, fontSize: 12),
             ),
-            Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+            TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0, end: targetValue),
+              duration: const Duration(milliseconds: 1500),
+              curve: Curves.easeOut,
+              builder: (context, value, child) {
+                return Text(
+                  'EUR ${value.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -399,7 +445,7 @@ class _BalanceCard extends StatelessWidget {
   }
 }
 
-class _AnimatedStatCard extends StatefulWidget {
+class _AnimatedStatCard extends StatelessWidget {
   final String title;
   final double value;
   final String prefix;
@@ -421,60 +467,14 @@ class _AnimatedStatCard extends StatefulWidget {
   });
 
   @override
-  State<_AnimatedStatCard> createState() => _AnimatedStatCardState();
-}
-
-class _AnimatedStatCardState extends State<_AnimatedStatCard>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-  double _animatedValue = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 400),
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.elasticOut));
-
-    Future.delayed(Duration(milliseconds: 100 * widget.delay), () {
-      if (mounted) {
-        _controller.forward();
-        _animateValue();
-      }
-    });
-  }
-
-  void _animateValue() {
-    const steps = 20;
-    const stepDuration = Duration(milliseconds: 25);
-
-    for (int i = 1; i <= steps; i++) {
-      Future.delayed(stepDuration * i, () {
-        if (mounted) {
-          setState(() {
-            _animatedValue = widget.value * (i / steps);
-          });
-        }
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return ScaleTransition(
-      scale: _scaleAnimation,
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.elasticOut,
+      builder: (context, scale, child) {
+        return Transform.scale(scale: scale, child: child);
+      },
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -482,7 +482,7 @@ class _AnimatedStatCardState extends State<_AnimatedStatCard>
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: widget.color.withValues(alpha: 0.2),
+              color: color.withValues(alpha: 0.2),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -495,24 +495,31 @@ class _AnimatedStatCardState extends State<_AnimatedStatCard>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  widget.title,
+                  title,
                   style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                 ),
-                widget.isPulsing
-                    ? _PulsingIcon(icon: widget.icon, color: widget.color)
-                    : Icon(widget.icon, color: widget.color, size: 20),
+                isPulsing
+                    ? _PulsingIcon(icon: icon, color: color)
+                    : Icon(icon, color: color, size: 20),
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              widget.isInteger
-                  ? '${widget.prefix}${_animatedValue.toInt()}'
-                  : '${widget.prefix}${_animatedValue.toStringAsFixed(2)}',
-              style: TextStyle(
-                color: widget.color,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+            TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0, end: value),
+              duration: const Duration(milliseconds: 1000),
+              curve: Curves.easeOut,
+              builder: (context, val, child) {
+                return Text(
+                  isInteger
+                      ? '$prefix${val.toInt()}'
+                      : '$prefix${val.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -561,109 +568,6 @@ class _PulsingIconState extends State<_PulsingIcon>
     return ScaleTransition(
       scale: _animation,
       child: Icon(widget.icon, color: widget.color, size: 20),
-    );
-  }
-}
-
-class _AnimatedTransaction extends StatefulWidget {
-  final String title;
-  final String amount;
-  final IconData icon;
-  final Color color;
-  final String time;
-  final int delay;
-
-  const _AnimatedTransaction({
-    required this.title,
-    required this.amount,
-    required this.icon,
-    required this.color,
-    required this.time,
-    required this.delay,
-  });
-
-  @override
-  State<_AnimatedTransaction> createState() => _AnimatedTransactionState();
-}
-
-class _AnimatedTransactionState extends State<_AnimatedTransaction>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _slideAnimation;
-  late Animation<double> _fadeAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 400),
-      vsync: this,
-    );
-    _slideAnimation = Tween<double>(
-      begin: 50,
-      end: 0,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
-    _fadeAnimation = Tween<double>(
-      begin: 0,
-      end: 1,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-
-    Future.delayed(Duration(milliseconds: 100 * widget.delay), () {
-      if (mounted) _controller.forward();
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return Transform.translate(
-          offset: Offset(_slideAnimation.value, 0),
-          child: Opacity(
-            opacity: _fadeAnimation.value,
-            child: Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: widget.color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(widget.icon, color: widget.color),
-                ),
-                title: Text(
-                  widget.title,
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-                subtitle: Text(
-                  widget.time,
-                  style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-                ),
-                trailing: Text(
-                  widget.amount,
-                  style: TextStyle(
-                    color: widget.color,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 }

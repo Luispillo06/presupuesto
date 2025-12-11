@@ -2,9 +2,9 @@
 
 ## Proyecto: Aplicacion Movil MarketMove
 **Cliente:** MarketMove S.L.  
-**Fecha:** 1 de diciembre de 2025  
+**Fecha:** 11 de diciembre de 2025  
 **Version:** 1.0  
-**Empresa desarrolladora:** Luis S.A
+**Empresa desarrolladora:** Equipo de Desarrollo MarketMove
 
 ---
 

@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../../shared/theme/app_theme.dart';
+import '../../../core/supabase/supabase_config.dart';
 import '../../ventas/screens/ventas_screen.dart';
+import '../../ventas/screens/crear_venta_screen.dart';
 import '../../gastos/screens/gastos_screen.dart';
+import '../../gastos/screens/crear_gasto_screen.dart';
 import '../../productos/screens/productos_screen.dart';
+import '../../productos/screens/crear_producto_screen.dart';
 import '../../resumen/screens/resumen_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -94,6 +98,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   PreferredSizeWidget _buildAnimatedAppBar() {
+    Color appBarColor = _getAppBarColor();
+
     return AppBar(
       title: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
@@ -111,6 +117,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         },
         child: Text(_titles[_currentIndex], key: ValueKey<int>(_currentIndex)),
       ),
+      backgroundColor: appBarColor,
       actions: [
         ScaleTransition(
           scale: _fabScale,
@@ -131,6 +138,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  Color _getAppBarColor() {
+    switch (_currentIndex) {
+      case 0: // Resumen
+        return Colors.grey[800] ?? Colors.grey;
+      case 1: // Ventas
+        return Colors.green;
+      case 2: // Gastos
+        return Colors.red;
+      case 3: // Productos
+        return Colors.blue;
+      default:
+        return Colors.grey[800] ?? Colors.grey;
+    }
+  }
+
   Widget _buildAnimatedBottomBar() {
     return Container(
       decoration: BoxDecoration(
@@ -149,11 +171,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(4, (index) {
+              Color itemColor = Colors.grey;
+              if (index == 1) itemColor = Colors.green; // Ventas VERDE
+              if (index == 2) itemColor = Colors.red; // Gastos ROJO
+              if (index == 3) itemColor = Colors.blue; // Productos AZUL
+
               return _AnimatedNavItem(
                 icon: _icons[index],
                 activeIcon: _activeIcons[index],
                 label: _titles[index],
                 isSelected: _currentIndex == index,
+                color: itemColor,
                 onTap: () {
                   _onTabTapped(index);
                 },
@@ -197,24 +225,37 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Color _getFabColor() {
     switch (_currentIndex) {
       case 1:
-        return AppTheme.successColor;
+        return Colors.green; // Ventas VERDE
       case 2:
-        return AppTheme.errorColor;
+        return Colors.red; // Gastos ROJO
       case 3:
-        return AppTheme.primaryColor;
+        return Colors.blue; // Productos AZUL
       default:
-        return AppTheme.primaryColor;
+        return Colors.blue;
     }
   }
 
   void _showAddDialog() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Agregar ${_getFabLabel()}'),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    switch (_currentIndex) {
+      case 1: // Ventas
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const CrearVentaScreen()),
+        );
+        break;
+      case 2: // Gastos
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const CrearGastoScreen()),
+        );
+        break;
+      case 3: // Productos
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const CrearProductoScreen()),
+        );
+        break;
+    }
   }
 
   void _showNotifications(BuildContext context) {
@@ -267,73 +308,81 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Indicador de arrastre
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
+      builder: (context) => SingleChildScrollView(
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Indicador de arrastre
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
 
-            // Avatar y nombre de usuario
-            const CircleAvatar(
-              radius: 40,
-              backgroundColor: AppTheme.primaryColor,
-              child: Icon(Icons.person, size: 40, color: Colors.white),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Usuario Demo',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const Text(
-              'usuario@ejemplo.com',
-              style: TextStyle(color: AppTheme.textSecondary),
-            ),
-            const SizedBox(height: 24),
-
-            // Opciones del menú
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text('Configuración'),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Configuración en desarrollo')),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.help_outline),
-              title: const Text('Ayuda'),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Ayuda en desarrollo')),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout, color: AppTheme.errorColor),
-              title: const Text(
-                'Cerrar sesión',
-                style: TextStyle(color: AppTheme.errorColor),
+              // Avatar y nombre de usuario
+              const CircleAvatar(
+                radius: 40,
+                backgroundColor: AppTheme.primaryColor,
+                child: Icon(Icons.person, size: 40, color: Colors.white),
               ),
-              onTap: () {
-                Navigator.pop(context);
-                _handleLogout();
-              },
-            ),
-            const SizedBox(height: 20),
-          ],
+              const SizedBox(height: 12),
+              Text(
+                SupabaseConfig.currentUser?.userMetadata?['nombre'] ??
+                    'Usuario',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                SupabaseConfig.currentUser?.email ?? 'correo@ejemplo.com',
+                style: const TextStyle(color: AppTheme.textSecondary),
+              ),
+              const SizedBox(height: 24),
+
+              // Opciones del menú
+              ListTile(
+                leading: const Icon(Icons.settings),
+                title: const Text('Configuración'),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Configuración en desarrollo'),
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.help_outline),
+                title: const Text('Ayuda'),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Ayuda en desarrollo')),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.logout, color: AppTheme.errorColor),
+                title: const Text(
+                  'Cerrar sesión',
+                  style: TextStyle(color: AppTheme.errorColor),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _handleLogout();
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );
@@ -371,6 +420,7 @@ class _AnimatedNavItem extends StatefulWidget {
   final IconData activeIcon;
   final String label;
   final bool isSelected;
+  final Color color;
   final VoidCallback onTap;
 
   const _AnimatedNavItem({
@@ -378,6 +428,7 @@ class _AnimatedNavItem extends StatefulWidget {
     required this.activeIcon,
     required this.label,
     required this.isSelected,
+    required this.color,
     required this.onTap,
   });
 
@@ -429,7 +480,7 @@ class _AnimatedNavItemState extends State<_AnimatedNavItem>
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             color: widget.isSelected
-                ? AppTheme.primaryColor.withValues(alpha: 0.1)
+                ? widget.color.withValues(alpha: 0.1)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
           ),
@@ -444,9 +495,7 @@ class _AnimatedNavItemState extends State<_AnimatedNavItem>
                 child: Icon(
                   widget.isSelected ? widget.activeIcon : widget.icon,
                   key: ValueKey<bool>(widget.isSelected),
-                  color: widget.isSelected
-                      ? AppTheme.primaryColor
-                      : Colors.grey,
+                  color: widget.isSelected ? widget.color : Colors.grey,
                   size: widget.isSelected ? 28 : 24,
                 ),
               ),
@@ -454,9 +503,7 @@ class _AnimatedNavItemState extends State<_AnimatedNavItem>
               AnimatedDefaultTextStyle(
                 duration: const Duration(milliseconds: 200),
                 style: TextStyle(
-                  color: widget.isSelected
-                      ? AppTheme.primaryColor
-                      : Colors.grey,
+                  color: widget.isSelected ? widget.color : Colors.grey,
                   fontSize: widget.isSelected ? 12 : 11,
                   fontWeight: widget.isSelected
                       ? FontWeight.bold

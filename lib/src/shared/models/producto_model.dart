@@ -1,6 +1,7 @@
 /// Modelo de datos para un Producto
 class Producto {
   final int? id;
+  final String userId; // ID del vendedor
   final String nombre;
   final String? descripcion;
   final double precio;
@@ -12,6 +13,7 @@ class Producto {
 
   Producto({
     this.id,
+    this.userId = '',
     required this.nombre,
     this.descripcion,
     required this.precio,
@@ -32,12 +34,16 @@ class Producto {
   factory Producto.fromJson(Map<String, dynamic> json) {
     return Producto(
       id: json['id'] as int?,
+      userId: json['user_id'] as String? ?? '',
       nombre: json['nombre'] as String,
       descripcion: json['descripcion'] as String?,
-      precio: (json['precio'] as num).toDouble(),
-      stock: json['stock'] as int,
-      stockMinimo: json['stock_minimo'] as int? ?? 5,
-      categoria: json['categoria'] as String,
+      precio:
+          (json['precio_venta'] as num?)?.toDouble() ??
+          (json['precio'] as num?)?.toDouble() ??
+          0.0,
+      stock: (json['stock_actual'] as int?) ?? (json['stock'] as int?) ?? 0,
+      stockMinimo: (json['stock_minimo'] as int?) ?? 5,
+      categoria: json['categoria'] as String? ?? 'General',
       codigoBarras: json['codigo_barras'] as String?,
       imagenUrl: json['imagen_url'] as String?,
     );

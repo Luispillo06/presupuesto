@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'dart:async';
 import '../../../shared/theme/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -15,6 +16,7 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _textController;
   late AnimationController _loadingController;
   late AnimationController _bgController;
+  Timer? _navigationTimer;
 
   late Animation<double> _logoScale;
   late Animation<double> _logoRotate;
@@ -91,7 +93,7 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _navigateToLogin() {
-    Future.delayed(const Duration(milliseconds: 3000), () {
+    _navigationTimer = Timer(const Duration(milliseconds: 3000), () {
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/login');
       }
@@ -100,6 +102,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
+    _navigationTimer?.cancel();
     _logoController.dispose();
     _textController.dispose();
     _loadingController.dispose();
