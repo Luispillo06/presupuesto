@@ -1,4 +1,77 @@
-# 🗄️ Configuración de Supabase para MarketMove
+# 🗄️ Base de Datos Supabase - Presupuesto Marketplace
+
+## 📌 INSTRUCCIÓN IMPORTANTE
+
+**Usa SOLO este archivo:**
+```
+📄 database.sql
+```
+
+Este archivo contiene TODO lo necesario:
+- ✅ Elimina todo lo que hay
+- ✅ Crea tablas completas desde cero
+- ✅ RLS activado
+- ✅ Triggers automáticos
+- ✅ Índices para rendimiento
+- ✅ Vistas para reportes
+
+---
+
+## 🚀 Cómo Usar
+
+1. Abre [Supabase Console](https://app.supabase.com)
+2. Ve a tu proyecto
+3. Abre **SQL Editor**
+4. Copia TODO el contenido de `database.sql`
+5. Pégalo en la consola SQL
+6. Ejecuta (botón **Run** o `Ctrl+Enter`)
+
+---
+
+## ✅ Lo que se crea
+
+### Tablas
+- `perfiles` - Usuarios con roles
+- `productos` - Inventario
+- `ventas` - Ventas registradas
+- `gastos` - Gastos categorizados
+- `compras` - Compras de buyers a vendors
+
+### Seguridad
+- RLS en todas las tablas
+- Políticas por rol (vendor/buyer)
+- Foreign keys con cascade delete
+
+### Automatización
+- `updated_at` automático
+- Perfil creado al registrarse
+- Índices para búsquedas rápidas
+
+### Reportes
+- `vista_ventas_mensuales`
+- `vista_gastos_por_categoria`
+- `vista_productos_stock_bajo`
+
+---
+
+## ⚠️ Archivos Antiguos
+
+Los siguientes archivos **NO uses** (están deprecados):
+- ❌ `schema.sql`
+- ❌ `schema_crm.sql`
+- ❌ `schema_marketplace.sql`
+- ❌ `setup.sql`
+
+---
+
+## 🔄 Si ejecutas `database.sql` nuevamente
+
+No hay problema. El script:
+1. Elimina TODO (DROP)
+2. Recrea desde cero (CREATE)
+
+**Útil para reset de datos** 🔄
+
 
 ## 📋 Pasos de Configuración
 

@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'shared/theme/app_theme.dart';
 import 'shared/constants/app_constants.dart';
 import 'shared/providers/data_providers.dart';
-import 'shared/providers/compras_provider.dart';
 import 'shared/providers/crm_provider.dart';
 import 'features/splash/screens/splash_screen.dart';
 import 'features/auth/screens/login_screen.dart';
@@ -35,7 +34,6 @@ class MarketMoveApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => VentasProvider()),
         ChangeNotifierProvider(create: (_) => GastosProvider()),
         ChangeNotifierProvider(create: (_) => ResumenProvider()),
-        ChangeNotifierProvider(create: (_) => ComprasProvider()),
         ChangeNotifierProvider(create: (_) => CrmProvider()),
       ],
       child: MaterialApp(

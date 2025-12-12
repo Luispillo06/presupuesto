@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/data_service.dart';
+import '../theme/app_theme.dart';
 
 /// ChangeNotifier para gestionar Productos
 /// Captura excepciones del DataService y el programa continúa funcionando
@@ -200,45 +201,53 @@ class ResumenProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    _totalVentas = await _dataService.getTotalVentasDelDia();
-    _totalGastos = await _dataService.getTotalGastosDelDia();
-    _balance = await _dataService.getBalanceDelDia();
-    _totalProductos = await _dataService.getTotalProductos();
-    _productosStockBajo = await _dataService.getTotalProductosStockBajo();
+    try {
+      // Obtener datos de ventas y gastos del día
+      _totalVentas = await _dataService.getTotalVentasDelDia();
+      _totalGastos = await _dataService.getTotalGastosDelDia();
+      _balance = _totalVentas - _totalGastos;
+      _totalProductos = await _dataService.getTotalProductos();
+      _productosStockBajo = await _dataService.getTotalProductosStockBajo();
 
-    // Cargar transacciones recientes
-    final ventas = await _dataService.getVentas();
-    final gastos = await _dataService.getGastos();
+      // Cargar transacciones recientes
+      final ventas = await _dataService.getVentas();
+      final gastos = await _dataService.getGastos();
 
-    final allTransactions = <Map<String, dynamic>>[];
+      final allTransactions = <Map<String, dynamic>>[];
 
-    for (var v in ventas) {
-      allTransactions.add({
-        'type': 'venta',
-        'title': v.cliente,
-        'amount': v.monto,
-        'date': v.fecha,
-        'subtitle': 'Venta',
-      });
+      for (var v in ventas) {
+        allTransactions.add({
+          'type': 'venta',
+          'title': v.cliente,
+          'amount': v.monto,
+          'date': v.fecha,
+          'icon': Icons.trending_up,
+          'color': AppTheme.successColor,
+        });
+      }
+
+      for (var g in gastos) {
+        allTransactions.add({
+          'type': 'gasto',
+          'title': g.concepto,
+          'amount': g.monto,
+          'date': g.fecha,
+          'icon': Icons.trending_down,
+          'color': AppTheme.errorColor,
+        });
+      }
+
+      // Ordenar por fecha descendente
+      allTransactions.sort(
+        (a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime),
+      );
+
+      _recentTransactions = allTransactions.take(10).toList();
+    } catch (e) {
+      debugPrint('Error loading resumen: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    for (var g in gastos) {
-      allTransactions.add({
-        'type': 'gasto',
-        'title': g.concepto,
-        'amount': g.monto,
-        'date': g.fecha,
-        'subtitle': g.categoria,
-      });
-    }
-
-    // Ordenar por fecha descendente
-    allTransactions.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
-
-    // Tomar las últimas 5
-    _recentTransactions = allTransactions.take(5).toList();
-
-    _isLoading = false;
-    notifyListeners();
   }
 }

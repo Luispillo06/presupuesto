@@ -14,11 +14,11 @@ class CrearVentaScreen extends StatefulWidget {
 class _CrearVentaScreenState extends State<CrearVentaScreen> {
   final _clienteController = TextEditingController();
   final _notasController = TextEditingController();
-  
+
   // Lista de productos seleccionados para la venta
   // Map<Producto, Cantidad>
   final Map<Producto, int> _productosSeleccionados = {};
-  
+
   bool _isLoading = false;
 
   @override
@@ -95,14 +95,14 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
         if (result) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('✅ Venta creada exitosamente')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('✅ Venta creada exitosamente')),
+          );
           Navigator.pop(context);
         } else {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('❌ Error al crear venta')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('❌ Error al crear venta')),
+          );
         }
       }
     } catch (e) {
@@ -113,6 +113,91 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
+  }
+
+  void _mostrarCantidadDialog(Producto producto) {
+    int cantidad = _productosSeleccionados[producto] ?? 1;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(producto.nombre),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Stock disponible: ${producto.stock}'),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.remove),
+                        onPressed: cantidad > 1
+                            ? () {
+                                setDialogState(() => cantidad--);
+                              }
+                            : null,
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          cantidad.toString(),
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add),
+                        onPressed: cantidad < producto.stock
+                            ? () {
+                                setDialogState(() => cantidad++);
+                              }
+                            : null,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _productosSeleccionados.remove(producto);
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: const Text(
+                    'Quitar',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _productosSeleccionados[producto] = cantidad;
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Guardar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   void _mostrarSelectorProductos() {
@@ -134,9 +219,11 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
                 if (provider.isLoading) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                
+
                 if (provider.productos.isEmpty) {
-                  return const Center(child: Text('No hay productos disponibles'));
+                  return const Center(
+                    child: Text('No hay productos disponibles'),
+                  );
                 }
 
                 return Column(
@@ -154,26 +241,96 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
                         itemCount: provider.productos.length,
                         itemBuilder: (context, index) {
                           final producto = provider.productos[index];
-                          final yaSeleccionado = _productosSeleccionados.containsKey(producto);
-                          
-                          return ListTile(
-                            title: Text(producto.nombre),
-                            subtitle: Text('\$${producto.precio.toStringAsFixed(2)} - Stock: ${producto.stock}'),
-                            trailing: yaSeleccionado 
-                                ? const Icon(Icons.check_circle, color: Colors.green)
-                                : const Icon(Icons.add_circle_outline),
-                            onTap: () {
-                              setState(() {
-                                if (yaSeleccionado) {
-                                  _productosSeleccionados.remove(producto);
+                          final cantidad =
+                              _productosSeleccionados[producto] ?? 0;
+
+                          return Card(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.blue.shade100,
+                                child: Text(
+                                  producto.stock.toString(),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              title: Text(
+                                producto.nombre,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '\$${producto.precio.toStringAsFixed(2)}',
+                                  ),
+                                  Text(
+                                    'Stock: ${producto.stock}',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              trailing: cantidad > 0
+                                  ? Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.shade100,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 4,
+                                      ),
+                                      child: Text(
+                                        'x$cantidad',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.green,
+                                        ),
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.add_circle_outline,
+                                      color: Colors.grey,
+                                    ),
+                              onTap: () {
+                                if (cantidad == 0) {
+                                  setState(() {
+                                    _productosSeleccionados[producto] = 1;
+                                  });
                                 } else {
-                                  _productosSeleccionados[producto] = 1;
+                                  _mostrarCantidadDialog(producto);
                                 }
-                              });
-                              Navigator.pop(context);
-                            },
+                              },
+                            ),
                           );
                         },
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                          ),
+                          child: const Text(
+                            'Listo',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -211,7 +368,7 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Lista de Productos Seleccionados
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -228,7 +385,7 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  
+
                   if (_productosSeleccionados.isEmpty)
                     Container(
                       padding: const EdgeInsets.all(30),
@@ -240,7 +397,11 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
                       ),
                       child: Column(
                         children: [
-                          Icon(Icons.shopping_cart_outlined, size: 48, color: Colors.grey.shade400),
+                          Icon(
+                            Icons.shopping_cart_outlined,
+                            size: 48,
+                            color: Colors.grey.shade400,
+                          ),
                           const SizedBox(height: 8),
                           Text(
                             'No hay productos seleccionados',
@@ -256,19 +417,25 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
                       itemCount: _productosSeleccionados.length,
                       separatorBuilder: (_, __) => const Divider(),
                       itemBuilder: (context, index) {
-                        final producto = _productosSeleccionados.keys.elementAt(index);
+                        final producto = _productosSeleccionados.keys.elementAt(
+                          index,
+                        );
                         final cantidad = _productosSeleccionados[producto]!;
-                        
+
                         return ListTile(
                           contentPadding: EdgeInsets.zero,
                           title: Text(producto.nombre),
-                          subtitle: Text('\$${producto.precio.toStringAsFixed(2)} x $cantidad'),
+                          subtitle: Text(
+                            '\$${producto.precio.toStringAsFixed(2)} x $cantidad',
+                          ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
                                 '\$${(producto.precio * cantidad).toStringAsFixed(2)}',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                               const SizedBox(width: 8),
                               IconButton(
@@ -276,7 +443,8 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
                                 onPressed: () {
                                   setState(() {
                                     if (cantidad > 1) {
-                                      _productosSeleccionados[producto] = cantidad - 1;
+                                      _productosSeleccionados[producto] =
+                                          cantidad - 1;
                                     } else {
                                       _productosSeleccionados.remove(producto);
                                     }
@@ -288,11 +456,16 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
                                 onPressed: () {
                                   if (cantidad < producto.stock) {
                                     setState(() {
-                                      _productosSeleccionados[producto] = cantidad + 1;
+                                      _productosSeleccionados[producto] =
+                                          cantidad + 1;
                                     });
                                   } else {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('No hay más stock disponible')),
+                                      const SnackBar(
+                                        content: Text(
+                                          'No hay más stock disponible',
+                                        ),
+                                      ),
                                     );
                                   }
                                 },
@@ -306,7 +479,7 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
                   const SizedBox(height: 16),
                   const Divider(thickness: 2),
                   const SizedBox(height: 16),
-                  
+
                   // Notas
                   TextField(
                     controller: _notasController,
@@ -321,7 +494,7 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
               ),
             ),
           ),
-          
+
           // Barra inferior con Total y Botón
           Container(
             padding: const EdgeInsets.all(16),
@@ -344,7 +517,10 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
                     children: [
                       const Text(
                         'Total:',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       Text(
                         '\$${_montoTotal.toStringAsFixed(2)}',

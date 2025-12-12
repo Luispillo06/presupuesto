@@ -73,13 +73,19 @@ class _ProductosScreenState extends State<ProductosScreen> {
                       itemCount: filteredProductos.length,
                       itemBuilder: (context, index) {
                         final producto = filteredProductos[index];
-                        final isLowStock = producto.stock <= (producto.stockMinimo ?? 5);
+                        final isLowStock =
+                            producto.stock <= producto.stockMinimo;
 
                         return Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 4,
+                          ),
                           child: ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: isLowStock ? Colors.red.shade100 : Colors.blue.shade100,
+                              backgroundColor: isLowStock
+                                  ? Colors.red.shade100
+                                  : Colors.blue.shade100,
                               child: Icon(
                                 Icons.inventory_2,
                                 color: isLowStock ? Colors.red : Colors.blue,
@@ -87,7 +93,9 @@ class _ProductosScreenState extends State<ProductosScreen> {
                             ),
                             title: Text(
                               producto.nombre,
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -106,13 +114,21 @@ class _ProductosScreenState extends State<ProductosScreen> {
                                     Text(
                                       'Stock: ${producto.stock}',
                                       style: TextStyle(
-                                        color: isLowStock ? Colors.red : Colors.black87,
-                                        fontWeight: isLowStock ? FontWeight.bold : FontWeight.normal,
+                                        color: isLowStock
+                                            ? Colors.red
+                                            : Colors.black87,
+                                        fontWeight: isLowStock
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
                                       ),
                                     ),
                                     if (isLowStock) ...[
                                       const SizedBox(width: 4),
-                                      const Icon(Icons.warning_amber, size: 16, color: Colors.red),
+                                      const Icon(
+                                        Icons.warning_amber,
+                                        size: 16,
+                                        color: Colors.red,
+                                      ),
                                     ],
                                   ],
                                 ),
@@ -122,11 +138,14 @@ class _ProductosScreenState extends State<ProductosScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => CrearProductoScreen(producto: producto),
+                                  builder: (context) =>
+                                      CrearProductoScreen(producto: producto),
                                 ),
                               ).then((_) {
                                 if (mounted) {
-                                  context.read<ProductosProvider>().loadProductos();
+                                  context
+                                      .read<ProductosProvider>()
+                                      .loadProductos();
                                 }
                               });
                             },
@@ -134,43 +153,65 @@ class _ProductosScreenState extends State<ProductosScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  icon: const Icon(Icons.edit, color: Colors.blue),
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    color: Colors.blue,
+                                  ),
                                   onPressed: () {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) => CrearProductoScreen(producto: producto),
+                                        builder: (context) =>
+                                            CrearProductoScreen(
+                                              producto: producto,
+                                            ),
                                       ),
                                     ).then((_) {
                                       if (mounted) {
-                                        context.read<ProductosProvider>().loadProductos();
+                                        context
+                                            .read<ProductosProvider>()
+                                            .loadProductos();
                                       }
                                     });
                                   },
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                  ),
                                   onPressed: () async {
                                     final confirm = await showDialog<bool>(
                                       context: context,
                                       builder: (context) => AlertDialog(
                                         title: const Text('Eliminar Producto'),
-                                        content: Text('¿Estás seguro de eliminar "${producto.nombre}"?'),
+                                        content: Text(
+                                          '¿Estás seguro de eliminar "${producto.nombre}"?',
+                                        ),
                                         actions: [
                                           TextButton(
-                                            onPressed: () => Navigator.pop(context, false),
+                                            onPressed: () =>
+                                                Navigator.pop(context, false),
                                             child: const Text('Cancelar'),
                                           ),
                                           TextButton(
-                                            onPressed: () => Navigator.pop(context, true),
-                                            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                                            onPressed: () =>
+                                                Navigator.pop(context, true),
+                                            child: const Text(
+                                              'Eliminar',
+                                              style: TextStyle(
+                                                color: Colors.red,
+                                              ),
+                                            ),
                                           ),
                                         ],
                                       ),
                                     );
 
                                     if (confirm == true) {
-                                      await provider.deleteProducto(producto.id!);
+                                      await provider.deleteProducto(
+                                        producto.id!,
+                                      );
                                     }
                                   },
                                 ),

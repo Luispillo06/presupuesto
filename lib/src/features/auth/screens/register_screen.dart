@@ -302,26 +302,11 @@ class _RegisterScreenState extends State<RegisterScreen>
           ),
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildRoleCard(
-                role: 'vendor',
-                label: '🏪 Vendedor',
-                subtitle: 'Vende productos',
-                isSelected: _selectedRole == 'vendor',
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildRoleCard(
-                role: 'buyer',
-                label: '🛒 Comprador',
-                subtitle: 'Compra productos',
-                isSelected: _selectedRole == 'buyer',
-              ),
-            ),
-          ],
+        _buildRoleCard(
+          role: 'vendor',
+          label: '🏪 Vendedor',
+          subtitle: 'Vende productos',
+          isSelected: _selectedRole == 'vendor',
         ),
       ],
     );

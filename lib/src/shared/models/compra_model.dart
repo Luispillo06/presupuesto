@@ -62,6 +62,18 @@ class Compra {
     return '${fechaCompra.day}/${fechaCompra.month}/${fechaCompra.year} ${fechaCompra.hour}:${fechaCompra.minute.toString().padLeft(2, '0')}';
   }
 
+  /// Obtener nombre del comprador desde la relación
+  String? get buyerNombre => vendorData?['nombre'] as String?;
+
+  /// Obtener nombre del vendedor desde la relación
+  String? get vendorNombre => vendorData?['nombre'] as String?;
+
+  /// Obtener nombre del producto desde la relación
+  String? get productoNombre => productoData?['nombre'] as String?;
+
+  /// Obtener descripción del producto desde la relación
+  String? get productoDescripcion => productoData?['descripcion'] as String?;
+
   /// Crear desde JSON (para Supabase)
   factory Compra.fromJson(Map<String, dynamic> json) {
     return Compra(
